@@ -1,0 +1,137 @@
+//1. Server Implementation :
+
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+//ChatServer class to manage connections from multiple clients.
+//The server handles incoming connections, assigns a unique user ID to each connected client,
+//and maintains a list of connected users.
+
+public class ChatServer {
+    private static final int PORT = 2427; // Port number for the server
+    private static Set<ClientHandler> clientHandlers = new HashSet<>(); // Set to maintain connected clients
+    private static int userId = 0; // Counter to assign unique user IDs
+
+ // Starts the chat server to accept incoming connections.   
+    public static void main(String[] args) {
+        new ChatServer().startServer();
+    }
+
+    public void startServer() {
+        System.out.println("Chat server started...");
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            while (true) {
+                Socket clientSocket = serverSocket.accept(); // Accept incoming client connection
+                userId++;
+                ClientHandler clientHandler = new ClientHandler(clientSocket, userId); 
+                clientHandlers.add(clientHandler); // Add the client to the list of connected clients
+                clientHandler.start(); // Start the client handler thread
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+  
+   //Broadcasts a message to all connected clients except the sender.
+   //Here we have message to broadcast and user ID of the sender
+    static void broadcastMessage(String message, int userId) {
+        for (ClientHandler clientHandler : clientHandlers) {
+            if (clientHandler.getUserId() != userId) {
+                clientHandler.sendMessage("User " + userId + ": " + message);
+            }
+        }
+    }
+
+  //Removes a client from the list of connected clients    
+    static void removeClient(ClientHandler clientHandler) {
+        clientHandlers.remove(clientHandler);
+        System.out.println("User " + clientHandler.getUserId() + " disconnected");
+    }
+}
+
+//2. Client Implementation
+
+import java.io.*;
+import java.net.*;
+
+ //ChatClient class handles connecting to the chat server,
+ //sendingssages to the server, and receiving messages from the server.
+
+public class ChatClient {
+    // Host address of the server
+    private static final String SERVER_HOST = "localhost";
+    // Port number of the server
+    private static final int SERVER_PORT = 2427;
+
+    public static void main(String[] args) {
+        // Create a new ChatClient instance and start the client
+        new ChatClient().startClient();
+    }
+
+    //Method to start the chat client.
+     //It connects to the server, sets up input/output streams, and handles message sending and receiving.
+    
+    public void startClient() {
+        try (
+            // Establish a socket connection to the server
+            Socket socket = new Socket(SERVER_HOST, SERVER_PORT);
+            // Reader to get input from the user
+            BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
+            // Writer to send messages to the server
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))
+        ) {
+            // Inform the user that they are connected to the server
+            System.out.println("Congratulations! You're now Connected to the chat server.");
+            System.out.println("Type your messages below and Press Enter to send.");
+
+            // Start a separate thread to receive messages from the server
+            Thread receiverThread = new Thread(() -> {
+                try {
+                    String serverMessage;
+                    // Continuously read messages from the server and print them
+                    while ((serverMessage = in.readLine()) != null) {
+                        System.out.println(serverMessage);
+                    }
+                } catch (IOException e) {
+                    System.out.println("Error reading message from server: " + e.getMessage());
+                }
+            });
+
+            // Start the receiver thread
+            receiverThread.start();
+
+            // Main thread to read user input and send it to the server
+            String userInputLine;
+            while ((userInputLine = userInput.readLine()) != null) {
+                out.println(userInputLine);
+            }
+        } catch (IOException e) {
+            System.out.println("Error connecting to the chat server: " + e.getMessage());
+        }
+    }
+}
+
+// 3. Port Generator Implementation:
+
+import java.util.Random;
+
+//PortGenerator class to generate a random port number within a specified range
+public class PortGenerator {
+    public static void main(String[] args) {
+        int minPort = 1024; // Minimum port number (exclusive) 
+        int maxPort = 49151; // Maximum port number (inclusive)
+
+        int randomPort = generateRandomPort(minPort, maxPort);
+        System.out.println("Random port: " + randomPort);
+    }
+
+    // Generates a random port number within the specified range
+    //
+    public static int generateRandomPort(int minPort, int maxPort) {
+        Random random = new Random(); //Return a random port number within the specified range
+        return random.nextInt(maxPort - minPort) + minPort;
+    }
+}
+
